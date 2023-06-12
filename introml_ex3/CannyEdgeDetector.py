@@ -15,28 +15,26 @@ def gaussFilter(img_in, ksize, sigma):
     :param sigma: sigma (float)
     :return: (kernel, filtered) kernel and Gaussian filtered image (both np.ndarray)
     """
-    kernel = np.zeros((ksize, ksize))
-    center = ksize // 2
+    def make_kernel(ksize, sigma):
+        kernel = np.zeros((ksize, ksize))
+        center = ksize // 2
 
-    for i in range(ksize):
-        for j in range(ksize):
-            x = i - center
-            y = j - center
-            kernel[i, j] = (1 / (2 * np.pi * sigma**2)) * np.exp(-(x**2 + y**2) / (2 * sigma**2))
+        for i in range(ksize):
+            for j in range(ksize):
+                x = i - center
+                y = j - center
+                kernel[i, j] = (1 / (2 * np.pi * sigma**2)) * np.exp(-(x**2 + y**2) / (2 * sigma**2))
 
-    kernel /= np.sum(kernel)
+        kernel /= np.sum(kernel)
+        return kernel
 
-    pad_size = ksize // 2
-    img_padded = np.pad(img_in, pad_size, mode='constant')
+    # Generate the Gaussian kernel
+    kernel = make_kernel(ksize, sigma)
 
-    filtered = np.zeros_like(img_in)
+    # Perform convolution with the Gaussian kernel using scipy's convolve function
+    filtered = convolve(img_in, kernel)
 
-    for i in range(img_in.shape[0]):
-        for j in range(img_in.shape[1]):
-            for u in range(-pad_size, pad_size + 1):
-                for v in range(-pad_size, pad_size + 1):
-                    filtered[i, j] += kernel[u + pad_size, v + pad_size] * img_padded[i + u + pad_size, j + v + pad_size]
-
+    # Return the kernel and filtered image
     return kernel, filtered
 
 
