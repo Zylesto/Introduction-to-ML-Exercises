@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import convolve
-
+from PIL import Image
 
 #
 # NO MORE MODULES ALLOWED
@@ -15,24 +15,19 @@ def gaussFilter(img_in, ksize, sigma):
     :param sigma: sigma (float)
     :return: (kernel, filtered) kernel and Gaussian filtered image (both np.ndarray)
     """
-    def make_kernel(ksize, sigma):
-        kernel = np.zeros((ksize, ksize))
-        center = ksize // 2
+    kernel = np.zeros((ksize, ksize))
+    center = ksize // 2
 
-        for i in range(ksize):
-            for j in range(ksize):
-                x = i - center
-                y = j - center
-                kernel[i, j] = (1 / (2 * np.pi * sigma**2)) * np.exp(-(x**2 + y**2) / (2 * sigma**2))
+    for i in range(ksize):
+        for j in range(ksize):
+            x = i - center
+            y = j - center
+            kernel[i, j] = (1 / (2 * np.pi * sigma**2)) * np.exp(-(x**2 + y**2) / (2 * sigma**2))
 
-        kernel /= np.sum(kernel)
-        return kernel
-
-    # Generate the Gaussian kernel
-    kernel = make_kernel(ksize, sigma)
+    kernel /= np.sum(kernel)
 
     # Perform convolution with the Gaussian kernel using scipy's convolve function
-    filtered = convolve(img_in, kernel)
+    filtered = convolve(img_in, kernel).astype(int)
 
     # Return the kernel and filtered image
     return kernel, filtered
@@ -46,11 +41,17 @@ def sobel(img_in):
     :param img_in: input image (np.ndarray)
     :return: gx, gy - Sobel filtered images in x- and y-direction (np.ndarray, np.ndarray)
     """
-    sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
-    sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
+    sobel_x = np.array([[-1, 0, 1],
+                        [-2, 0, 2],
+                        [-1, 0, 1]])
 
-    gx = convolve(img_in, sobel_x)
-    gy = convolve(img_in, sobel_y)
+    sobel_y = np.array([[-1, -2, -1],
+                        [0, 0, 0],
+                        [1, 2, 1]])
+
+    #TODO: *-1 because of the flipped kernel?
+    gx = convolve(img_in, sobel_x * -1).astype(int)
+    gy = convolve(img_in, sobel_y * -1).astype(int)
 
     return gx, gy
 
@@ -62,7 +63,7 @@ def gradientAndDirection(gx, gy):
     :param gy: Sobel filtered image in x direction (np.ndarray)
     :return: g, theta (np.ndarray, np.ndarray)
     """
-    g = np.sqrt(gx**2 + gy**2)
+    g = np.sqrt(gx**2 + gy**2).astype(int)
     theta = np.arctan2(gy, gx)
 
     return g, theta
@@ -186,3 +187,6 @@ def canny(img):
     result = hysteris(maxS_img, 50, 75)
 
     return result
+
+if __name__ == "__main__":
+    canny(np.array(Image.open("contrast.jpg").convert("L")).astype(int))
