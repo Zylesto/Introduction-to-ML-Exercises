@@ -50,6 +50,7 @@ def sobel(img_in):
                         [1, 2, 1]])
 
     #TODO: *-1 because of the flipped kernel?
+    #scipy applies convolution invertedd so multiply it with *-1, it changes gradientchange
     gx = convolve(img_in, sobel_x * -1).astype(int)
     gy = convolve(img_in, sobel_y * -1).astype(int)
 
@@ -98,17 +99,17 @@ def maxSuppress(g, theta):
 
     for i in range(1, height - 1):
         for j in range(1, width - 1):
-            angle = convertAngle(theta[i, j])
-            if angle == 0:
-                if g[i, j] >= g[i, j - 1] and g[i, j] >= g[i, j + 1]:
+            angle = convertAngle(theta[i, j]) #gradient angle
+            if angle == 0: #horizontal edge
+                if g[i, j] >= g[i, j - 1] and g[i, j] >= g[i, j + 1]: #if gradient is left and right higher, then g[i,j] is highest anstieg
                     max_sup[i, j] = g[i, j]
-            elif angle == 45:
+            elif angle == 45: #edge from left to right (schräg)
                 if g[i, j] >= g[i - 1, j + 1] and g[i, j] >= g[i + 1, j - 1]:
                     max_sup[i, j] = g[i, j]
-            elif angle == 90:
+            elif angle == 90: #vertical edge
                 if g[i, j] >= g[i - 1, j] and g[i, j] >= g[i + 1, j]:
                     max_sup[i, j] = g[i, j]
-            elif angle == 135:
+            elif angle == 135: #from left to right /schräg)
                 if g[i, j] >= g[i - 1, j - 1] and g[i, j] >= g[i + 1, j + 1]:
                     max_sup[i, j] = g[i, j]
 
@@ -128,17 +129,17 @@ def hysteris(max_sup, t_low, t_high):
     """
     thresholded = np.zeros_like(max_sup)
     strong_i, strong_j = np.where(max_sup >= t_high)
-    weak_i, weak_j = np.where((max_sup >= t_low) & (max_sup < t_high))
+    weak_i, weak_j = np.where((max_sup >= t_low) & (max_sup < t_high)) #indices of strong and weak edges
 
-    thresholded[strong_i, strong_j] = 255
+    thresholded[strong_i, strong_j] = 255 #mark them (here strong)
     thresholded[weak_i, weak_j] = 75
 
     height, width = thresholded.shape
     for i in range(1, height - 1):
         for j in range(1, width - 1):
-            if thresholded[i, j] == 75:
+            if thresholded[i, j] == 75: #weak edge
                 if np.max(thresholded[i - 1:i + 2, j - 1:j + 2]) == 255:
-                    thresholded[i, j] = 255
+                    thresholded[i, j] = 255 #if weak edge is in range of strong edge, it is strong edge
                 else:
                     thresholded[i, j] = 0
 
