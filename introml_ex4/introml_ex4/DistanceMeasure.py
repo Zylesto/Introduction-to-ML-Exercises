@@ -26,8 +26,8 @@ def calculate_Theta_Distance(Thetax, Thetay):
     :param Thetay: Fan features of Person Y
     :return: Similiarity index of the two feature vectors
     '''
-    Lxx = np.sum(Thetax - np.sum(Thetax) / len(Thetax) ** 2)
-    Lyy = np.sum(Thetay - np.sum(Thetay) / len(Thetay) ** 2)
+    Lxx = np.sum((Thetax - np.sum(Thetax) / len(Thetax)) ** 2)
+    Lyy = np.sum((Thetay - np.sum(Thetay) / len(Thetay)) ** 2)
     Lxy = np.sum((Thetax - np.sum(Thetax) / len(Thetax)) * (Thetay - np.sum(Thetay) / len(Thetay)))
 
-    return 1 - (Lxx * Lxy) / (Lxx * Lyy) * 100
+    return (1 - (Lxy * Lxy) / (Lxx * Lyy)) * 100
