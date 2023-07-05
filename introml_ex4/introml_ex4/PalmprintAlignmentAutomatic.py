@@ -125,7 +125,7 @@ def getCoordinateTransform(k1, k2, k3) -> np.ndarray:
     :param k3: point in (y, x) order
     :return: 2x3 matrix rotation around origin by angle
     '''
-    pass
+
 
 def palmPrintAlignment(img):
     '''

@@ -33,12 +33,8 @@ def calculateMagnitudeSpectrum(img) -> np.ndarray:
     :param img:
     :return:
     '''
-    f = np.fft.fftshift(np.fft.fft2(img))
-
-    # Berechne das Magnitudenspektrum
-    magnitude_spectrum = np.abs(f)
-
-    return magnitude_spectrum
+    img_freq_dom = np.fft.fftshift(np.fft.fft2(img))
+    return 20 * np.log10(np.abs(img_freq_dom) + 1)
 
 
 def extractRingFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
@@ -49,23 +45,17 @@ def extractRingFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
     :param sampling_steps: times to sample one ring
     :return: feature vector of k features
     '''
-    rows, cols = magnitude_spectrum.shape
+
     feature_vector = np.zeros(k)
+    spectrum_shape = magnitude_spectrum.shape
+    radius_inc = k
+    theta = np.linspace(0, np.pi, sampling_steps)
 
-    for i in range(k):
-        # Radius des aktuellen Rings
-        radius = (i + 1) * max(rows, cols) / (2 * k)
-
-        # Winkelabstand zwischen den Abtastpunkten auf dem Ring
-        angle_step = 2 * np.pi / sampling_steps
-
-        # Abtastpunkte auf dem Ring
-        for j in range(sampling_steps):
-            angle = j * angle_step
-            y, x = polarToKart(magnitude_spectrum.shape, radius, angle)
-            y = int(y)
-            x = int(x)
-            feature_vector[i] += magnitude_spectrum[y, x]
+    for i in range(len(feature_vector)):
+        r_steps = np.arange(radius_inc * i, radius_inc * (i + 1) + 1)
+        for r in r_steps:
+            spectrum_indices = np.asarray(polarToKart(spectrum_shape, r, theta)).astype(int)
+            feature_vector[i] += np.sum(magnitude_spectrum[spectrum_indices[0], spectrum_indices[1]])
 
     return feature_vector
 
@@ -73,30 +63,25 @@ def extractRingFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
 def extractFanFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
     """
     Follow the approach to extract Fan features
-    Assume all rays have same length regardless of angle.
+    Assume all rays have the same length regardless of angle.
     Their length should be set by the smallest feasible ray.
-    :param magnitude_spectrum:
-    :param k: number of fans-like features to extract
-    :param sampling_steps: number of rays to sample from in one fan-like area
-    :return: feature vector of length k
+    :param magnitude_spectrum: Magnitude spectrum of a signal or image
+    :param k: Number of fan-like features to extract
+    :param sampling_steps: Number of rays to sample from in one fan-like area
+    :return: Feature vector of length k
     """
-    rows, cols = magnitude_spectrum.shape
+
     feature_vector = np.zeros(k)
+    spectrum_shape = magnitude_spectrum.shape
+    r = np.arange(0, (np.min(spectrum_shape) / 2) - 1)
 
-    for i in range(k):
-        # Winkelabstand zwischen den Abtaststrahlen
-        angle_step = 2 * np.pi / sampling_steps
-
-        # Abtaststrahlen im aktuellen Ventilator-ähnlichen Bereich
-        for j in range(sampling_steps):
-            angle = i * angle_step
-            y, x = polarToKart(magnitude_spectrum.shape, min(rows, cols) / 2, angle)
-            y = int(y)
-            x = int(x)
-            feature_vector[i] += magnitude_spectrum[y, x]
+    for i in range(len(feature_vector)):
+        for theta in np.linspace(i * np.pi / k, (i + 1) * np.pi / k, sampling_steps, endpoint=False):
+            spectrum_indices = polarToKart(spectrum_shape, r, theta)
+            spectrum_indices = np.asarray(spectrum_indices, dtype=int)
+            feature_vector[i] += np.sum(magnitude_spectrum[spectrum_indices[0], spectrum_indices[1]])
 
     return feature_vector
-
 
 def calcuateFourierParameters(img, k, sampling_steps) -> (np.ndarray, np.ndarray):
     '''
