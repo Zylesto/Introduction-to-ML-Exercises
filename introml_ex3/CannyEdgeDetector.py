@@ -20,7 +20,7 @@ def gaussFilter(img_in, ksize, sigma):
 
     for i in range(ksize):
         for j in range(ksize):
-            x = i - center
+            x = i - center #verschieben den Urpsrung in die Mitte des Kernels
             y = j - center
             kernel[i, j] = (1 / (2 * np.pi * sigma**2)) * np.exp(-(x**2 + y**2) / (2 * sigma**2))
 
@@ -49,8 +49,7 @@ def sobel(img_in):
                         [0, 0, 0],
                         [1, 2, 1]])
 
-    #TODO: *-1 because of the flipped kernel?
-    #scipy applies convolution invertedd so multiply it with *-1, it changes gradientchange
+    #scipy applies convolution inverted so multiply it with *-1, it changes gradientchange
     gx = convolve(img_in, sobel_x * -1).astype(int)
     gy = convolve(img_in, sobel_y * -1).astype(int)
 
