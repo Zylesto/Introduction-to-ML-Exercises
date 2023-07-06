@@ -33,8 +33,11 @@ def calculateMagnitudeSpectrum(img) -> np.ndarray:
     :param img:
     :return:
     '''
-    img_freq_dom = np.fft.fftshift(np.fft.fft2(img))
-    return 20 * np.log10(np.abs(img_freq_dom) + 1)
+    ft = np.fft.fft2(img)
+    shifted_ft = np.fft.fftshift(ft)
+    magnitude = np.abs(shifted_ft)
+    # + 1 to avoid log of zero and convert it to decibel
+    return 20 * np.log10(magnitude + 1)
 
 
 def extractRingFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
@@ -45,19 +48,8 @@ def extractRingFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
     :param sampling_steps: times to sample one ring
     :return: feature vector of k features
     '''
-
-    feature_vector = np.zeros(k)
-    spectrum_shape = magnitude_spectrum.shape
-    radius_inc = k
-    theta = np.linspace(0, np.pi, sampling_steps)
-
-    for i in range(len(feature_vector)):
-        r_steps = np.arange(radius_inc * i, radius_inc * (i + 1) + 1)
-        for r in r_steps:
-            spectrum_indices = np.asarray(polarToKart(spectrum_shape, r, theta)).astype(int)
-            feature_vector[i] += np.sum(magnitude_spectrum[spectrum_indices[0], spectrum_indices[1]])
-
-    return feature_vector
+    #TODO
+    pass
 
 
 def extractFanFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
@@ -70,18 +62,8 @@ def extractFanFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
     :param sampling_steps: Number of rays to sample from in one fan-like area
     :return: Feature vector of length k
     """
-
-    feature_vector = np.zeros(k)
-    spectrum_shape = magnitude_spectrum.shape
-    r = np.arange(0, (np.min(spectrum_shape) / 2) - 1)
-
-    for i in range(len(feature_vector)):
-        for theta in np.linspace(i * np.pi / k, (i + 1) * np.pi / k, sampling_steps, endpoint=False):
-            spectrum_indices = polarToKart(spectrum_shape, r, theta)
-            spectrum_indices = np.asarray(spectrum_indices, dtype=int)
-            feature_vector[i] += np.sum(magnitude_spectrum[spectrum_indices[0], spectrum_indices[1]])
-
-    return feature_vector
+    #TODO
+    pass
 
 def calcuateFourierParameters(img, k, sampling_steps) -> (np.ndarray, np.ndarray):
     '''
