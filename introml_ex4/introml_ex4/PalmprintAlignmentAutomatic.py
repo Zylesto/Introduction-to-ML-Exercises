@@ -125,7 +125,8 @@ def getCoordinateTransform(k1, k2, k3) -> np.ndarray:
     k3_x = k3[1]
 
     # slope of k1 and k3
-    m1 = (k3_y - k1_y) / (k3_x - k1_x)
+    epsilon = 1e-7  # small value to prevent division by zero
+    m1 = (k3_y - k1_y) / (k3_x - k1_x + epsilon)
     # inverse of the lines slope -> perpendicular to slope m1
     m2 = -1 / m1
 
@@ -148,35 +149,38 @@ def palmPrintAlignment(img):
     :param img: greyscale image
     :return: transformed image
     '''
-    smoothed_image = binarizeAndSmooth(img)
 
-    # find and draw the largest contour in image
-    contour_image = drawLargestContour(smoothed_image)
+    blurred_img = binarizeAndSmooth(img)
+    contour_img = drawLargestContour(blurred_img)
 
-    #TODO: everything below doesnt work
+    # Obtain the intersections
+    x1_column, x2_column = None, None
+    x1_intersections, x2_intersections = None, None
+    x2_offset = 10
 
-    # choose two suitable columns and find 6 intersections with the finger's contour
-    x1 = img.shape[1] // 3
-    x2 = 2 * img.shape[1] // 3
-    intersections1 = getFingerContourIntersections(contour_image, x1)
-    intersections2 = getFingerContourIntersections(contour_image, x2)
+    for column in range(img.shape[1]):
+        intersections = getFingerContourIntersections(contour_img, column)
+        if intersections is not None and len(intersections) >= 6:   # Ensure at least 6 intersection points
+            if x1_column is None:
+                x1_column = column
+                x1_intersections = intersections
+            elif x2_column is None:
+                x2_column = max(column - x2_offset, x1_column + 1)
+                x2_intersections = getFingerContourIntersections(contour_img, x2_column)
+                if len(x2_intersections) >= 6:   # Ensure at least 6 intersection points
+                    break
 
-    # compute middle points from these contour intersections
-    midpoint1 = np.mean(intersections1)
-    midpoint2 = np.mean(intersections2)
+    # Check if intersections were found
+    if x1_intersections is None or x2_intersections is None:
+        return None
 
-    # K-Punkte extrapolieren
-    y1, y2 = img.shape[0], 0
-    x1 = int((midpoint1 - y1) * (x2 - x1) / (y2 - y1) + x1)
-    x3 = int((midpoint2 - y1) * (x2 - x1) / (y2 - y1) + x1)
-    k1 = findKPoints(contour_image, y1, x1, y2, x2)
-    k2 = findKPoints(contour_image, y1, x2, y2, x2)
-    k3 = findKPoints(contour_image, y1, x3, y2, x2)
+    # Calculate the middle points and find K-points
+    k_points = np.empty([3, 2], dtype=int)
+    for i in range(len(k_points)):
+        y1 = (x1_intersections[2 * i] + x1_intersections[2 * i + 1]) // 2
+        y2 = (x2_intersections[2 * i] + x2_intersections[2 * i + 1]) // 2
+        k_points[i] = findKPoints(contour_img, y1, x1_column, y2, x2_column)
 
-    # Koordinatentransformation erhalten
-    transform_matrix = getCoordinateTransform(k1, k2, k3)
-
-    # Bild um den neuen Ursprung rotieren
-    aligned_img = cv2.warpAffine(img, transform_matrix, img.shape[::-1])
-
-    return aligned_img
+    # Compute rotation matrix and warp the image
+    rotation_matrix = getCoordinateTransform(*k_points)
+    return cv2.warpAffine(img, rotation_matrix, img.shape[::-1])
