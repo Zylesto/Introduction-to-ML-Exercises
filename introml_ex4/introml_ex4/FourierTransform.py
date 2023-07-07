@@ -48,8 +48,18 @@ def extractRingFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
     :param sampling_steps: times to sample one ring
     :return: feature vector of k features
     '''
-    #TODO
-    pass
+
+    features = np.zeros(k)
+    theta_steps = np.linspace(0, np.pi, sampling_steps)
+    for i in range(len(features)):
+        r_steps = np.arange(k * i, k * (i + 1) + 1)
+        for r in r_steps:
+            y, x = polarToKart(magnitude_spectrum.shape, r, theta_steps)
+            y = y.astype(int)
+            x = x.astype(int)
+            features[i] += np.sum(magnitude_spectrum[y, x])
+    return features
+
 
 
 def extractFanFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
@@ -62,8 +72,16 @@ def extractFanFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
     :param sampling_steps: Number of rays to sample from in one fan-like area
     :return: Feature vector of length k
     """
-    #TODO
-    pass
+    features = np.zeros(k)
+    r = np.arange(0, (np.min(magnitude_spectrum.shape) / 2) - 1)
+    for i in range(len(features)):
+        theta_steps = np.linspace(i * np.pi / k, (i+1) * np.pi / k, sampling_steps, endpoint=False)
+        for theta in theta_steps:
+            y, x = polarToKart(magnitude_spectrum.shape, r, theta)
+            y = y.astype(int)
+            x = x.astype(int)
+            features[i] += np.sum(magnitude_spectrum[y, x])
+    return features
 
 def calcuateFourierParameters(img, k, sampling_steps) -> (np.ndarray, np.ndarray):
     '''
