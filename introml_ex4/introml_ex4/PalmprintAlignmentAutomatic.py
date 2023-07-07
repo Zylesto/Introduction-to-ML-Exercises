@@ -133,11 +133,12 @@ def getCoordinateTransform(k1, k2, k3) -> np.ndarray:
     c1 = k1_y - m1 * k1_x
     c2 = k2_y - m2 * k2_x
 
-    # new coordinate system, rotation center
+    # intersection = new center, rotation center
     x_new = (c2 - c1) / (m1 - m2)
     y_new = m1 * x_new + c1
 
     # rotation angle for transformation
+    # m = tan(alpha) -> alpha = arctan(m)
     angle = np.rad2deg(np.arctan(m2))
 
     return cv2.getRotationMatrix2D((y_new, x_new), angle, scale=1)
@@ -150,24 +151,29 @@ def palmPrintAlignment(img):
     :return: transformed image
     '''
 
+    # threshold and blur
     blurred_img = binarizeAndSmooth(img)
+    #  find and draw largest contour in image
     contour_img = drawLargestContour(blurred_img)
 
-    # Obtain the intersections
+    # choose two suitable columns and find 6 intersections with the finger's contour
     x1_column, x2_column = None, None
     x1_intersections, x2_intersections = None, None
-    x2_offset = 10
+    x2_offset = 5
 
+    # iterate over each column of the image
     for column in range(img.shape[1]):
+        # get intersections
         intersections = getFingerContourIntersections(contour_img, column)
-        if intersections is not None and len(intersections) >= 6:   # Ensure at least 6 intersection points
+        if intersections is not None and len(intersections) == 6:   # Ensure 6 intersection points
             if x1_column is None:
                 x1_column = column
                 x1_intersections = intersections
             elif x2_column is None:
+                # to assure that x2_column is not the same as x1_column/lays right to x1_column
                 x2_column = max(column - x2_offset, x1_column + 1)
                 x2_intersections = getFingerContourIntersections(contour_img, x2_column)
-                if len(x2_intersections) >= 6:   # Ensure at least 6 intersection points
+                if len(x2_intersections) == 6:   # Ensure 6 intersection points
                     break
 
     # Check if intersections were found
@@ -176,11 +182,14 @@ def palmPrintAlignment(img):
 
     # Calculate the middle points and find K-points
     k_points = np.empty([3, 2], dtype=int)
+    # for each k_points
     for i in range(len(k_points)):
+        # calculate the middle points between the intersections
         y1 = (x1_intersections[2 * i] + x1_intersections[2 * i + 1]) // 2
         y2 = (x2_intersections[2 * i] + x2_intersections[2 * i + 1]) // 2
         k_points[i] = findKPoints(contour_img, y1, x1_column, y2, x2_column)
 
-    # Compute rotation matrix and warp the image
+    # compute rotation matrix
     rotation_matrix = getCoordinateTransform(*k_points)
+    # rotate the image around new origin
     return cv2.warpAffine(img, rotation_matrix, img.shape[::-1])

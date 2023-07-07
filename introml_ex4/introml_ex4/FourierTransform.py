@@ -43,14 +43,16 @@ def calculateMagnitudeSpectrum(img) -> np.ndarray:
 def extractRingFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
     '''
     Follow the approach to extract ring features
-    :param magnitude_spectrum:
+    :param magnitude_spectrum: magnitude spectrum from which the ring features will be extracted
     :param k: number of rings to extract = #features
     :param sampling_steps: times to sample one ring
     :return: feature vector of k features
     '''
-
+    # initialize the accumulated feature values for each ring
     features = np.zeros(k)
+    # angles at which the rings are sampled
     theta_steps = np.linspace(0, np.pi, sampling_steps)
+    # for each feature/ring
     for i in range(len(features)):
         r_steps = np.arange(k * i, k * (i + 1) + 1)
         for r in r_steps:
@@ -59,7 +61,6 @@ def extractRingFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
             x = x.astype(int)
             features[i] += np.sum(magnitude_spectrum[y, x])
     return features
-
 
 
 def extractFanFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
@@ -72,8 +73,10 @@ def extractFanFeatures(magnitude_spectrum, k, sampling_steps) -> np.ndarray:
     :param sampling_steps: Number of rays to sample from in one fan-like area
     :return: Feature vector of length k
     """
+    # initialize the accumulated fan-like feature
     features = np.zeros(k)
     r = np.arange(0, (np.min(magnitude_spectrum.shape) / 2) - 1)
+    # for each fan-like feature
     for i in range(len(features)):
         theta_steps = np.linspace(i * np.pi / k, (i+1) * np.pi / k, sampling_steps, endpoint=False)
         for theta in theta_steps:
