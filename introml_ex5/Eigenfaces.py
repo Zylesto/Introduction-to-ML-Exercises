@@ -31,24 +31,25 @@ def create_database_from_folder(path):
 
 def process_and_train(labels, train, num_images, h, w):
     '''
-    Calculate the essentials: the average face image and the eigenfaces.
-    Train the classifier on the eigenfaces and the given training labels.
-    :param labels: 1D-array
-    :param train: training face images, 2D-array with images as row vectors (e.g. 64x64 image ->  4096 vector)
-    :param num_images: number of images, int
-    :param h: height of an image
-    :param w: width of an image
-    :return: the eigenfaces as row vectors (2D-array), number of eigenfaces, the average face
+    Processes the training data, including eigenface computation and training of the classifier
+    :param labels: labels of the training images
+    :param train: 2D-matrix with training images as row vectors, shape (#images, #pixels)
+    :param num_images: number of training images
+    :param h: height of the images
+    :param w: width of the images
+    :return: eigenfaces, number of eigenfaces, average face
     '''
-    avg = calculate_average_face(train)
-    eigenfaces, num_eigenfaces = calculate_eigenfaces(train, avg, num_images, h, w)
-    features = get_feature_representation(train.T, eigenfaces, avg, num_eigenfaces)
+    # Compute eigenfaces
+    u, num_eigenfaces, avg = calculate_eigenfaces(train, num_images, h, w)
 
-    # Train the classifier using the calculated features
-    clf = SVC(kernel="linear", C=0.025)
+    # Extract features (coefficients) from training images
+    features = get_feature_representation(train, u, avg, num_eigenfaces)
+
+    # Train the classifier
+    clf = SVC(kernel='linear')
     clf.fit(features, labels)
 
-    return eigenfaces, num_eigenfaces, avg
+    return u, num_eigenfaces, avg
 
 
 def calculate_average_face(train):
@@ -60,28 +61,36 @@ def calculate_average_face(train):
     return np.mean(train, axis=1)
 
 
-def calculate_eigenfaces(train, avg, num_eigenfaces, h, w):
+def calculate_eigenfaces(images, num_images, h, w):
     '''
-    Calculate the eigenfaces from the given training set using SVD
-    :param train: training face images, 2D-array with images as row vectors
-    :param avg: average face, 1D-array
-    :param num_eigenfaces: number of eigenfaces to return from the computed SVD
-    :param h: height of an image in the training set
-    :param w: width of an image in the training set
-    :return: the eigenfaces as row vectors, 2D-array --> shape(num_eigenfaces, #pixel of an image)
+    Calculates the eigenfaces from the given images
+    :param images: 2D-matrix with images as row vectors, shape (#images, #pixels)
+    :param num_images: number of images
+    :param h: height of the images
+    :param w: width of the images
+    :return: eigenfaces, number of eigenfaces, average face
     '''
-    centered_train = train - avg[:, np.newaxis]
-    _, s, vh = np.linalg.svd(centered_train, full_matrices=False)
-    eigenfaces = vh[:num_eigenfaces, :]
-    eigenfaces = eigenfaces.T
+    # Compute the average face
+    avg = np.mean(images, axis=0)
 
-    # Plot one eigenface to check
-    plt.imshow(eigenfaces[:, 0].reshape((h, w)), cmap='gray')
-    plt.title('Eigenface 1')
-    plt.show()
+    # Center the images by subtracting the average face
+    centered_images = images - avg
 
-    return eigenfaces, num_eigenfaces
+    # Compute the covariance matrix
+    cov_matrix = np.dot(centered_images.T, centered_images)
 
+    # Compute the eigenvalues and eigenvectors of the covariance matrix
+    eigenvalues, eigenvectors = np.linalg.eigh(cov_matrix)
+
+    # Sort the eigenvalues and eigenvectors in descending order
+    idx = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[idx]
+    eigenvectors = eigenvectors[:, idx]
+
+    # Normalize the eigenvectors
+    eigenfaces = eigenvectors.T
+
+    return eigenfaces, num_images, avg
 
 def get_feature_representation(images, eigenfaces, avg, num_eigenfaces):
     '''
@@ -94,7 +103,7 @@ def get_feature_representation(images, eigenfaces, avg, num_eigenfaces):
     :return: coefficients/features of all training images, 2D-matrix (#images, #used eigenfaces)
     '''
     centered_images = images - avg
-    coefficients = np.dot(centered_images, eigenfaces[:, :num_eigenfaces])
+    coefficients = np.dot(centered_images, eigenfaces[:num_eigenfaces, :].T)
 
     return coefficients
 
@@ -107,21 +116,27 @@ def reconstruct_image(img, eigenfaces, avg, num_eigenfaces, h, w):
     :param eigenfaces: 2D array with all available eigenfaces as row vectors
     :param avg: the average face image, 1D array
     :param num_eigenfaces: number of eigenfaces used to reconstruct the input image
-    :param h: height of a original image
-    :param w: width of a original image
-    :return: the reconstructed image, 2D array (shape of a original image)
+    :param h: height of the original image
+    :param w: width of the original image
+    :return: the reconstructed image, 2D array (shape of the original image)
     '''
     # Reshape the input image to fit in the feature helper method
-    img = img.reshape(-1, 1)
+    img = img.reshape(h, w)
+
+    # Center the input image by subtracting the average face
+    centered_img = img - avg.reshape(h, w)
 
     # Compute the coefficients to weight the eigenfaces
-    coefficients = get_feature_representation(img, eigenfaces, avg, num_eigenfaces)
+    coefficients = get_feature_representation(centered_img.reshape(1, -1), eigenfaces, avg, num_eigenfaces)
+
+    # Reshape the coefficients array to match the shape of eigenfaces
+    coefficients = coefficients.reshape(-1, num_eigenfaces)
 
     # Use the average image as a starting point to reconstruct the input image
-    reconstructed_img = avg.reshape(1, -1) + np.dot(coefficients, eigenfaces[:, :num_eigenfaces].T)
+    reconstructed_img = avg.reshape(h, w) + np.dot(coefficients, eigenfaces[:, :num_eigenfaces].T)
 
-    # Reshape the reconstructed image to match the shape of the original image
-    reconstructed_img = reconstructed_img.reshape(h, w)
+    # Convert the reconstructed image to float dtype
+    reconstructed_img = reconstructed_img.astype(np.float32)
 
     return reconstructed_img
 
