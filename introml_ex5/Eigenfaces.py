@@ -50,22 +50,19 @@ def process_and_train(labels, train, num_images, h, w):
     # Calculate the mean face
     avg = calculate_average_face(train)
 
-    # Subtract the mean face from each image to get a centered train
-    centered_train = train - avg
-
-    # Determine the number of eigenfaces
-    num_eigenfaces = min(num_images - 1, h * w)
+    # calculate the maximum number of eigenfaces
+    max_num_eigenfaces = num_images - 1
 
     # Calculate eigenfaces
-    eigenfaces = calculate_eigenfaces(centered_train, avg, num_eigenfaces, h, w)
+    eigenfaces = calculate_eigenfaces(train, avg, max_num_eigenfaces, h, w)
 
-    # Project the training data onto the eigenfaces
-    train_features = get_feature_representation(centered_train, eigenfaces, avg, num_eigenfaces)
+    # calculate the coefficients/features for all images
+    coeffs = get_feature_representation(train, eigenfaces, avg, max_num_eigenfaces)
 
     # Train the classifier using the features and corresponding labels
-    clf.fit(train_features, labels)
+    clf.fit(coeffs, labels)
 
-    return eigenfaces, num_eigenfaces, avg
+    return eigenfaces, max_num_eigenfaces, avg
 
 
 def calculate_average_face(train):
@@ -92,10 +89,17 @@ def calculate_eigenfaces(train, avg, num_eigenfaces, h, w):
     centered_train = train - avg
 
     # Compute the eigenfaces using SVD
-    _, _, vh = np.linalg.svd(centered_train, full_matrices=False)
+    # You might have to swap the axes so that the images are represented as column vectors
+    u, s, v = np.linalg.svd(centered_train.T)
 
     # Represent eigenfaces as row vectors in a 2D matrix and crop to the requested amount of eigenfaces
-    eigenfaces = vh[:num_eigenfaces]
+    eigenfaces = u.T[:num_eigenfaces]
+
+    # plot one eigenface to check whether you're using the right axis
+    # comment out when submitting your exercise via studOn
+    # img_plot = np.reshape(eigenfaces[0], (h, w))
+    # plt.imshow(img_plot, cmap="gray"), plt.colorbar()
+    # plt.show()
 
     return eigenfaces
 
@@ -111,19 +115,17 @@ def get_feature_representation(images, eigenfaces, avg, num_eigenfaces):
     :return: coefficients/features of all training images, 2D-matrix (#images, #used eigenfaces)
     '''
 
-    avg = avg.reshape(-1, 1)
+    # compute the coefficients for all images and save them in a 2D-matrix
+    coeffs = np.zeros((images.shape[0], num_eigenfaces))
 
-    centered_images = images - avg.T #transpose the avg
-
-    # Transpose the eigenfaces matrix
-    eigenfaces_T = eigenfaces.T
-
-    # Project centered images on eigenfaces
-    features = np.dot(centered_images, eigenfaces_T[:, :num_eigenfaces])
-
-    return features
-
-    return features
+    # 1. iterate through all images (one image per row)
+    for i in range(images.shape[0]):
+        # 1.1 compute the zero mean image by subtracting the average face
+        zero_mean_image = images[i] - avg
+        # 1.2 compute the image's coefficients for the expected number of eigenfaces
+        for j in range(num_eigenfaces):
+            coeffs[i, j] = np.dot(eigenfaces[j], zero_mean_image)
+    return coeffs
 
 def reconstruct_image(img, eigenfaces, avg, num_eigenfaces, h, w):
     '''
@@ -136,10 +138,17 @@ def reconstruct_image(img, eigenfaces, avg, num_eigenfaces, h, w):
     :param w: width of a original image
     :return: the reconstructed image, 2D array (shape of a original image)
     '''
+    # reshape the input image to fit in the feature helper method
     img = img.reshape(1, -1)
+    # compute the coefficients to weight the eigenfaces
     coefficients = get_feature_representation(img, eigenfaces, avg, num_eigenfaces)
-    reconstructed_img = avg + np.dot(coefficients, eigenfaces[:num_eigenfaces, :])
-    reconstructed_img = reconstructed_img.reshape(h, w)
+    # use the average image as starting point to reconstruct the input image
+    recon_img = np.copy(avg)
+    # reconstruct the input image using the coefficients
+    for i in range(num_eigenfaces):
+        recon_img += coefficients[0, i] * eigenfaces[i]
+    # reshape the reconstructed image back to its original shape
+    reconstructed_img = recon_img.reshape(h, w)
     return reconstructed_img
 
 
@@ -155,16 +164,9 @@ def classify_image(img, eigenfaces, avg, num_eigenfaces, h, w):
     :return: the predicted labels using the classifier, 1D-array (as returned by the classifier)
     '''
     # Reshape the input image to match the size of the eigenfaces
-    img = img.reshape((h * w,))
-
-    # Calculate the difference between the input image and the average image
-    diff = img - avg
-
-    # Project the difference onto the eigenfaces
-    weights = np.dot(diff, eigenfaces[:num_eigenfaces].T)
-
-    # Perform classification using the trained classifier
-    predicted_labels = clf.predict([weights])
-
+    img = img.reshape(1, -1)
+    # extract the features/coefficients for the eigenfaces of this image
+    coeffs = get_feature_representation(img, eigenfaces, avg, num_eigenfaces)
+    # predict the label of the given image by feeding its coefficients to the classifier
+    predicted_labels = clf.predict(coeffs)
     return predicted_labels
-
