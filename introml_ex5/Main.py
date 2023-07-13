@@ -151,4 +151,4 @@ else:
     print("Prediction of", n_test_images, "faces done in %0.3fs" % end)
     print("Prediction time per face %0.3fs" % (end / n_test_images))
 
-    print(classification_report(y_test, y_pred, target_names=labels))
+    print(classification_report(y_test, y_pred, target_names=labels , zero_division=1))
